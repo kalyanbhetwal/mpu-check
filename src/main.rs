@@ -51,7 +51,7 @@ fn main() -> ! {
 #[export_name = "TIM2"]
 pub unsafe extern "C" fn __cortex_m_rt_TIM2_trampoline() {
    //unsafe{asm!("NOP", options(noreturn))};
-   unsafe{asm!("cpsid i; nop; mov r0,sp; bl _timer2; pop {{r0-r3}}; pop {{r12}}; pop {{r5}}; pop {{r6}}; pop {{r5}};mov pc, r6 ;nop;", options(noreturn))};
+   unsafe{asm!("cpsid i; nop; mov r0,sp; mov r1, lr; bl _timer2;", options(noreturn))};
 }
 // #[export_name = "TIM2"]
 // pub unsafe extern "C" fn __cortex_m_rt_TIM2_trampoline() {
@@ -61,6 +61,7 @@ pub unsafe extern "C" fn __cortex_m_rt_TIM2_trampoline() {
 #[no_mangle]
 pub unsafe extern "C" fn _timer2(){
     let mut r0_value: u32;
+    let mut lr_value: u32;
 
     unsafe {
         // Inline assembly to move the value of R0 into the variable `r0_value`
@@ -69,12 +70,27 @@ pub unsafe extern "C" fn _timer2(){
             out(reg) r0_value  // Define `r0_value` as an output operand
         );
     }
+
+    unsafe {
+        // Inline assembly to move the value of R0 into the variable `r0_value`
+        asm!(
+            "MOV {0}, R1",     // Move the value of R0 into the output operand
+            out(reg) lr_value  // Define `r0_value` as an output operand
+        );
+    }
     hprintln!("I am in a differnt function").unwrap();
+
+
+    if lr_value == 0xFFFF_FFF9{
+        asm!(
+            "MSR msp, R0",  // Move the value from R0 into the PSP (Process Stack Pointer)
+            in("r0") r0_value
+        );
+        unsafe{asm!(" pop {{r0-r3}}; pop {{r12}}; pop {{r5}}; pop {{r6}}; pop {{r5}};mov pc, r6 ;nop;", options(noreturn))};
+    }
     asm!(
         "MSR msp, R0",  // Move the value from R0 into the PSP (Process Stack Pointer)
         in("r0") r0_value
     );
-
-    unsafe{asm!("pop {{r0-r3}}; pop {{r12}}; pop {{r5}}; pop {{r6}}; pop {{r5}};mov pc, r6 ;nop;", options(noreturn))};
- 
+    unsafe{asm!(" pop {{r7,lr}}", options(noreturn))};
 }
