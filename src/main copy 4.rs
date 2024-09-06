@@ -1,12 +1,11 @@
 #![no_main]
 #![no_std]
-
-use core::arch;
 use cortex_m::register::basepri::read;
 // #![feature(naked_functions)]
 use panic_halt as _;
 
 use core::sync::atomic::{AtomicUsize, Ordering};
+
 
 // TODO(6) Import your HAL
 use stm32f3xx_hal_v2 as _; // memory layout
@@ -28,6 +27,7 @@ use stm32f3xx_hal_v2::interrupt;
 use stm32f3xx_hal_v2::{pac::Peripherals, pac::Interrupt, timer::{Event, Timer}};
 
 use stm32f3xx_hal_v2::{pac, prelude::*};
+
 
 fn read_regs(){
     let control_reg_value: u32;
@@ -96,51 +96,32 @@ fn read_regs(){
     hprintln!("cpsr {:x}", cpsr).unwrap();
 
 }
-
 #[entry]
-fn main()->!{
-    hprintln!("before pendsv").unwrap();
-    SCB::set_pendsv(); 
-    unsafe {arch::asm!("svc #11");}
-    hprintln!("after pendsv").unwrap();
+fn main() -> ! {
+   
+    // Setup and initialization code here
+     let dp = Peripherals::take().unwrap();
+     // Set up the system clock
+     let mut flash = dp.FLASH.constrain();
+     let mut rcc = dp.RCC.constrain();
+     let clocks = rcc.cfgr.freeze(&mut flash.acr);
+ 
+     let mut timer = Timer::tim2(dp.TIM2, 5.hz(), clocks, &mut rcc.apb1);
+     timer.listen(Event::Update);
+     cortex_m::peripheral::NVIC::unpend(Interrupt::TIM2);
+     unsafe { cortex_m::peripheral::NVIC::unmask(interrupt::TIM2) };
+    read_regs();
     loop{
-
+       // hprintln!("rest").unwrap();
+       //debug::exit(debug::EXIT_SUCCESS);
     }
 }
-
-// #[exception]
-// fn PendSV(){
-//     read_regs();
-//     hprintln!("In pendsv").unwrap();
-// }
-
-#[allow(non_snake_case)]
 #[no_mangle]
-pub unsafe extern "C" fn PendSV() {
-    hprintln!("In pendsv").unwrap();
+#[export_name = "TIM2"]
+pub unsafe extern "C" fn __cortex_m_rt_TIM2_trampoline() {
+    hprintln!("I am in interrupt").unwrap();
+    unsafe {asm!("cpsid i")};
     read_regs();
-    arch::asm!( " mov r1, #0xFFFFFFF3" );
-    arch::asm!("msr APSR, r1");
-    arch::asm!("msr XPSR, r1");
-    read_regs();
-    arch::asm!("bl _test;");
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn _test(){
-    hprintln!("here").unwrap();
-    read_regs();
-    hprintln!("radfadf").unwrap();
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn SVCall(){
-    hprintln!("test").unwrap();
-    hprintln!("In svcall").unwrap();
-    read_regs();
-    arch::asm!( " mov r1, #0xFFFFFFF3" );
-    arch::asm!("msr APSR, r1");
-    arch::asm!("msr XPSR, r1");
-    read_regs();
-    arch::asm!("bl _test;");
+   //unsafe{asm!("NOP", options(noreturn))};
+   //unsafe{asm!("cpsid i; nop; mov r0,sp; mov r1, lr; bl _timer2;", options(noreturn))};
 }
