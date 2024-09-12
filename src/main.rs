@@ -5,7 +5,6 @@ use core::arch;
 use cortex_m::register::basepri::read;
 // #![feature(naked_functions)]
 use panic_halt as _;
-
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 // TODO(6) Import your HAL
