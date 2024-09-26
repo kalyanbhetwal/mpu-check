@@ -136,10 +136,9 @@ pub unsafe extern "C" fn _rest(){
 #[no_mangle]
 pub unsafe extern "C" fn _test(){
     hprintln!("test").unwrap();
-    hprintln!("test1").unwrap();
-    hprintln!("test2").unwrap();
-    hprintln!("test3").unwrap();
-    hprintln!("test4").unwrap();
+    hprintln!("test").unwrap();
+    hprintln!("test").unwrap();
+    hprintln!("test").unwrap();
     asm!(
         "movw r0, #0x0000",           // Load lower 16 bits of 0x080005AA into R0
         "movt r0, #0x4100",           // Load upper 16 bits of 0x080005AA into R0
