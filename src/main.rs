@@ -1,6 +1,6 @@
 #![no_main]
 #![no_std]
-#![feature(naked_functions)]
+ #![feature(naked_functions)]
 use core::arch;
 use cortex_m::register::basepri::read;
 // #![feature(naked_functions)]
@@ -28,85 +28,26 @@ use stm32f3xx_hal_v2::{pac::Peripherals, pac::Interrupt, timer::{Event, Timer}};
 
 use stm32f3xx_hal_v2::{pac, prelude::*};
 
-fn read_regs(){
-    let control_reg_value: u32;
-    unsafe {
-        asm!(
-            "MRS {0}, CONTROL",
-            out(reg) control_reg_value
-        );
-    }
-    let ipsr: u32;
-    unsafe {
-        asm!(
-            "MRS {0}, IPSR",
-            out(reg) ipsr
-        );
-    }
-
-    // Read APSR (Application Program Status Register)
-    let apsr: u32;
-    unsafe {
-        asm!(
-            "MRS {0}, APSR",
-            out(reg) apsr
-        );
-    }
-
-    // Read EPSR (Execution Program Status Register)
-    let epsr: u32;
-    unsafe {
-        asm!(
-            "MRS {0}, EPSR",
-            out(reg) epsr
-        );
-    }
-    let t_bit = (epsr >> 24) & 0x1;
-
-    let xpsr: u32;
-    unsafe {
-        asm!(
-            "MRS {0}, XPSR",
-            out(reg) xpsr
-        );
-    }
-    let msp: u32;
-    unsafe {
-        asm!(
-            "MRS {0}, msp",
-            out(reg) msp
-        );
-    }
-    let cpsr: u32;
-    unsafe {
-        asm!(
-            "MRS {0}, cpsr",
-            out(reg) cpsr
-        );
-    }
+use crate::checkpoint::restore;
 
 
-    hprintln!("control {:x}", control_reg_value).unwrap(); 
-    hprintln!("apsr {:x}", apsr).unwrap();
-    hprintln!("epsr {:x}", epsr).unwrap();
-    hprintln!("tbit {:x}", epsr).unwrap();
-    hprintln!("xpsr {:x}", xpsr).unwrap();
-    hprintln!("msp {:x}", msp).unwrap();
-    hprintln!("cpsr {:x}", cpsr).unwrap();
-
-}
+mod checkpoint;
 
 #[entry]
 fn main()->!{
+    restore();
    // hprintln!("before pendsv").unwrap();
-    unsafe {arch::asm!("svc #11");}
+   unsafe {cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);}
+   cortex_m::peripheral::NVIC::pend(Interrupt::TIM4);
+   // unsafe {arch::asm!("svc 0");}
     // SCB::set_pendsv(); 
     // hprintln!("after pendsv").unwrap();
     loop{
-        hprintln!("rest st");
+        hprintln!("rest st in loop");
        unsafe { _rest();}
        unsafe { _test();}
     }
+
 }
 
 // #[exception]
@@ -163,16 +104,22 @@ pub unsafe extern "C" fn PendSV() {
    // unsafe {arch::asm!("svc #11");}
 }
 
-#[naked]
+// // #[naked]
+// #[no_mangle]
+// pub unsafe extern "C" fn SVCall(){
+//     asm!(
+//         "movw r0, #0x21a",           // Load lower 16 bits of 0x080005AA into R0
+//         "movt r0, #0x0800",           // Load upper 16 bits of 0x080005AA into R0
+//         "mov pc, r0",
+//         options(noreturn)             // Indicate that this code does not return
+//     );
+//     //arch::asm!("bl _rest;");
+//     // change program counter and go to diffenre location and see how it behaves
+//     //arch::asm!("bl _test;");
+// }
+
 #[no_mangle]
-pub unsafe extern "C" fn SVCall(){
-    asm!(
-        "movw r0, #0x21a",           // Load lower 16 bits of 0x080005AA into R0
-        "movt r0, #0x0800",           // Load upper 16 bits of 0x080005AA into R0
-        "mov pc, r0",
-        options(noreturn)             // Indicate that this code does not return
-    );
-    //arch::asm!("bl _rest;");
-    // change program counter and go to diffenre location and see how it behaves
-    //arch::asm!("bl _test;");
+extern "C" fn TIM4(){
+    hprintln!("In tim4").unwrap();
+    checkpoint::checkpoint(true);
 }

@@ -124,7 +124,7 @@ pub fn checkpoint(c_type:bool){
 
     unsafe {
         asm!(
-            "add sp, #288"
+            "add sp, #280"
         );
     }
     unsafe {
@@ -139,7 +139,7 @@ pub fn checkpoint(c_type:bool){
     }
     unsafe {
         asm!(
-            "sub sp, #288"
+            "sub sp, #280"
         );
     }
 
@@ -273,7 +273,7 @@ pub fn checkpoint(c_type:bool){
     // have to be extra careful for the sp value
     unsafe {
         asm!(
-            "add r0, #296",
+            "add r0, #288",
         );
     }
     unsafe {
@@ -441,9 +441,10 @@ pub fn restore_globals(){
         }
     }
 }
-pub fn restore() -> bool {
+#[no_mangle]
+pub fn  restore() -> bool {
     unsafe {
-        enter_privileged_mode();
+       /// enter_privileged_mode();
         //enter_privileged_mode(); //asm!("msr CONTROL, #0");
         let mut flash_start_address = 0x0803_0000;
         let packet_size = ptr::read_volatile(0x0803_0000 as *const u32);
@@ -467,7 +468,7 @@ pub fn restore() -> bool {
         }
         flash_start_address += 4;
         if ptr::read_volatile(flash_start_address as *const u32) == 0xDEAD_BEEF {
-            restore_globals();
+            //restore_globals();
             *counter = 0;
         }
         //flash_start_address;
@@ -510,19 +511,34 @@ pub fn restore() -> bool {
         asm!("adds r0, r0, #4");
         asm!("LDR r14, [r0]");
         asm!("POP {{r0}}");
+        asm!("push {{r14}}");
         asm!("cpsie i");
        //set_xpsr(0x4100002e);
-        asm!("mov r15, r14");
-        asm!("adds sp, sp, #56");
-        asm!("adds sp, sp, #8");
-        asm!("POP {{r0, r1, r2, r3}}");
-        asm!("adds sp, sp, #4");
-        asm!("POP {{r4}}");
-        asm!("adds sp, sp, #16");
-        asm!("adds sp, sp, #64");
-        asm!("mov pc, r4");
+        asm!("svc 0");
+        asm!("mov r15, r14"); //r15 is pc //r14 is lr
+
+
+
+        // asm!("adds sp, sp, #56");
+        // asm!("adds sp, sp, #8");
+        // asm!("POP {{r0, r1, r2, r3}}");
+        // asm!("adds sp, sp, #4");
+        // asm!("POP {{r4}}");
+        // asm!("adds sp, sp, #16");
+        // asm!("adds sp, sp, #64");
+        // asm!("mov pc, r4");
     }
     return true;
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn SVCall(){
+    asm!(
+        "add sp, #44",
+        "POP {{r15}}",
+        options(noreturn)
+    )
+
 }
 
 
