@@ -22,6 +22,7 @@ use cortex_m::peripheral::{SYST, NVIC};
 use cortex_m::peripheral::CPUID;
 use cortex_m::asm;
 
+use cortex_m::peripheral;
 use stm32f3xx_hal_v2::interrupt;
 
 use stm32f3xx_hal_v2::{pac::Peripherals, pac::Interrupt, timer::{Event, Timer}};
@@ -34,11 +35,19 @@ use crate::checkpoint::restore;
 mod checkpoint;
 
 #[entry]
-fn main()->!{
+unsafe fn main()->!{
+    //checkpoint::delete_all_pg();
     restore();
    // hprintln!("before pendsv").unwrap();
-   unsafe {cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);}
-   cortex_m::peripheral::NVIC::pend(Interrupt::TIM4);
+//    unsafe {cortex_m::peripheral::NVIC::unmask(Interrupt::TIM4);}
+//    cortex_m::peripheral::NVIC::pend(Interrupt::TIM4);
+    let mut core = cortex_m::peripheral::Peripherals::steal();
+    core.NVIC.set_priority(Interrupt::TIM4, 50);
+    core.NVIC.set_priority(Interrupt::TIM3, 45);
+    peripheral::NVIC::unmask(Interrupt::TIM3);
+    peripheral::NVIC::unmask(Interrupt::TIM4);
+    cortex_m::interrupt::enable();
+    peripheral::NVIC::pend(stm32f3xx_hal_v2::pac::Interrupt::TIM4);
    // unsafe {arch::asm!("svc 0");}
     // SCB::set_pendsv(); 
     // hprintln!("after pendsv").unwrap();
@@ -121,5 +130,13 @@ pub unsafe extern "C" fn PendSV() {
 #[no_mangle]
 extern "C" fn TIM4(){
     hprintln!("In tim4").unwrap();
+    peripheral::NVIC::pend(stm32f3xx_hal_v2::pac::Interrupt::TIM3);
+   // checkpoint::checkpoint(true);
+}
+
+
+#[no_mangle]
+extern "C" fn TIM3(){
+    hprintln!("In tim3").unwrap();
     checkpoint::checkpoint(true);
 }
